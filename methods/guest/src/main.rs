@@ -1,7 +1,7 @@
-//! zkml inference guest program.
+//! attestar inference guest program.
 //!
 //! Reads a quantized model and input features from the host, runs the shared
-//! `zkml_common::inference` engine, and commits public journal fields:
+//! `attestar_common::inference` engine, and commits public journal fields:
 //! `(model_hash, input_hash, output_raw, class_label)`.
 //!
 //! STARK → Groth16 compression is out of scope here (issue #11).
@@ -10,10 +10,10 @@
 
 use risc0_zkvm::guest::env;
 use serde::{Deserialize, Serialize};
-use zkml_common::commitment::{commitment_hash, model_elements, Commitment};
-use zkml_common::fixed_point::FixedPoint;
-use zkml_common::inference::run_inference_with_decision;
-use zkml_common::models::Model;
+use attestar_common::commitment::{commitment_hash, model_elements, Commitment};
+use attestar_common::fixed_point::FixedPoint;
+use attestar_common::inference::run_inference_with_decision;
+use attestar_common::models::Model;
 
 risc0_zkvm::guest::entry!(main);
 

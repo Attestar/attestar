@@ -1,6 +1,6 @@
 # Model Representations
 
-All models live in `zkml-common::models` and use `FixedPoint` parameters.
+All models live in `attestar-common::models` and use `FixedPoint` parameters.
 
 ## Decision Tree
 

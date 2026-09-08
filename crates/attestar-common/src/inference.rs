@@ -1,0 +1,710 @@
+//! Model inference engine.
+//!
+//! Executes quantized ML models using fixed-point arithmetic. The same
+//! logic runs both natively (for testing) and inside the RISC Zero zkVM
+//! guest (for proof generation). Keeping inference in `attestar-common` avoids
+//! duplicating the proven path between host and guest.
+
+use crate::activation::relu_vec;
+use crate::error::AttestarError;
+use crate::fixed_point::FixedPoint;
+use crate::models::{DecisionTree, DenseLayer, LogisticRegression, Model, TinyMLP, TreeNode};
+
+#[cfg(feature = "std")]
+use alloc::format;
+
+#[cfg(not(feature = "std"))]
+use alloc::string::ToString;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
+/// Run inference on a model given a vector of input features.
+///
+/// Returns the raw fixed-point output value.
+pub fn run_inference(model: &Model, inputs: &[FixedPoint]) -> FixedPoint {
+    match model {
+        Model::DecisionTree(tree) => infer_decision_tree(tree, inputs),
+        Model::LogisticRegression(lr) => infer_logistic_regression(lr, inputs),
+        Model::TinyMLP(mlp) => infer_tiny_mlp(mlp, inputs),
+    }
+}
+
+/// Traverse a decision tree and return the leaf value.
+///
+/// # Threshold semantics
+///
+/// A sample takes the **left** child when
+/// `feature[feature_index].value <= threshold.value` (inclusive / `BRANCH_LEQ`).
+/// Values strictly greater than the threshold take the right child. This
+/// matches typical ONNX `TreeEnsembleClassifier` `BRANCH_LEQ` behavior and
+/// must stay aligned with any future circuit encoding.
+///
+/// # Panics
+///
+/// Panics if input length doesn't match expected features, or if the tree
+/// has a cycle causing the iteration limit to be exceeded. Prefer
+/// [`try_infer_decision_tree`] when cycle detection must be handled as an error.
+fn infer_decision_tree(tree: &DecisionTree, inputs: &[FixedPoint]) -> FixedPoint {
+    try_infer_decision_tree(tree, inputs).expect("decision tree inference exceeded iteration limit")
+}
+
+/// Fallible decision tree inference with bounded iteration.
+///
+/// Traverses the tree with a maximum iteration count to prevent infinite loops
+/// from malformed trees. Returns an error if the iteration limit is exceeded.
+fn try_infer_decision_tree(
+    tree: &DecisionTree,
+    inputs: &[FixedPoint],
+) -> Result<FixedPoint, AttestarError> {
+    if inputs.len() != tree.num_features {
+        return Err(AttestarError::FeatureCountMismatch {
+            expected: tree.num_features,
+            got: inputs.len(),
+        });
+    }
+
+    const MAX_ITERATIONS: usize = 10_000;
+    let mut node_idx = 0;
+    for _iteration in 0..MAX_ITERATIONS {
+        match &tree.nodes[node_idx] {
+            TreeNode::Split {
+                feature_index,
+                threshold,
+                left,
+                right,
+            } => {
+                if inputs[*feature_index].value <= threshold.value {
+                    node_idx = *left;
+                } else {
+                    node_idx = *right;
+                }
+            }
+            TreeNode::Leaf { value } => return Ok(*value),
+        }
+    }
+
+    Err(AttestarError::InvalidModel({
+        #[cfg(feature = "std")]
+        {
+            format!(
+                "decision tree traversal exceeded maximum iterations ({MAX_ITERATIONS}) - possible cycle"
+            )
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            "decision tree traversal exceeded maximum iterations - possible cycle".into()
+        }
+    }))
+}
+
+/// Fallible LogisticRegression forward used by [`try_run_inference`].
+///
+/// Computes `dot(weights, inputs) + bias` using checked `i128` arithmetic to
+/// prevent overflow, matching [`dense_forward`]. Validates that inputs are
+/// non-empty and share a uniform fixed-point scale.
+fn try_infer_logistic_regression(
+    lr: &LogisticRegression,
+    inputs: &[FixedPoint],
+) -> Result<FixedPoint, AttestarError> {
+    if inputs.is_empty() {
+        return Err(AttestarError::FeatureCountMismatch {
+            expected: lr.weights.len(),
+            got: 0,
+        });
+    }
+
+    if inputs.len() != lr.weights.len() {
+        return Err(AttestarError::FeatureCountMismatch {
+            expected: lr.weights.len(),
+            got: inputs.len(),
+        });
+    }
+
+    let scale = inputs[0].scale;
+    if inputs.iter().any(|x| x.scale != scale) {
+        return Err(AttestarError::QuantizationError(
+            "inputs have non-uniform fixed-point scale".to_string(),
+        ));
+    }
+
+    let mut acc = lr.bias;
+    for (w, x) in lr.weights.iter().zip(inputs.iter()) {
+        let product: FixedPoint = w.checked_mul(*x).ok_or(AttestarError::ArithmeticOverflow)?;
+        acc = acc
+            .checked_add(product)
+            .ok_or(AttestarError::ArithmeticOverflow)?;
+    }
+
+    Ok(FixedPoint::from_raw(acc.value, scale))
+}
+
+/// Compute logistic regression output: dot(weights, inputs) + bias.
+///
+/// Note: The sigmoid activation is omitted because it is not ZK-friendly.
+/// Instead, the verifier compares the raw linear output against a threshold.
+///
+/// # Panics
+///
+/// Panics if a checked fixed-point multiply or add overflows, or if input validation fails.
+/// Prefer [`try_run_inference`] when overflow must be handled as an error.
+fn infer_logistic_regression(lr: &LogisticRegression, inputs: &[FixedPoint]) -> FixedPoint {
+    try_infer_logistic_regression(lr, inputs).expect("Logistic regression inference overflow")
+}
+
+/// Compute one dense layer: `out[j] = sum_i(weight[j,i] * in[i]) + bias[j]`.
+///
+/// Weights are stored row-major as `weights[j * input_size + i]`.
+/// Products use [`FixedPoint::checked_mul`] (i128 intermediate) and the
+/// accumulator uses [`FixedPoint::checked_add`].
+#[allow(clippy::needless_range_loop)]
+fn dense_forward(
+    layer: &DenseLayer,
+    inputs: &[FixedPoint],
+) -> Result<Vec<FixedPoint>, AttestarError> {
+    let scale = inputs.first().map(|x| x.scale).unwrap_or(16);
+    let mut out = Vec::with_capacity(layer.output_size);
+    for j in 0..layer.output_size {
+        let mut acc = layer.biases[j];
+        for (i, x) in inputs.iter().enumerate().take(layer.input_size) {
+            let w = layer.weights[j * layer.input_size + i];
+            let product = w.checked_mul(*x).ok_or(AttestarError::ArithmeticOverflow)?;
+            acc = acc
+                .checked_add(product)
+                .ok_or(AttestarError::ArithmeticOverflow)?;
+        }
+        // Preserve caller scale when bias/weights share it (the normal case).
+        out.push(FixedPoint::from_raw(acc.value, scale));
+    }
+    Ok(out)
+}
+
+/// Run a forward pass through a tiny MLP using quantized ReLU between layers.
+///
+/// # Activation convention
+///
+/// Quantized ReLU (`max(0, x)`) is applied after **every layer except the
+/// last**. The final layer returns raw linear scores (no sigmoid/softmax),
+/// matching logistic regression's "omit the sigmoid" convention.
+/// [`run_inference`] exposes the first output neuron of that final layer;
+/// multi-class callers can use [`argmax`] on a full logits vector when the
+/// layer width is greater than one.
+///
+/// # Panics
+///
+/// Panics if a checked fixed-point multiply or add overflows. Prefer
+/// [`try_run_inference`] when overflow must be handled as an error.
+fn infer_tiny_mlp(mlp: &TinyMLP, inputs: &[FixedPoint]) -> FixedPoint {
+    try_infer_tiny_mlp(mlp, inputs).expect("TinyMLP inference overflow")
+}
+
+/// Fallible TinyMLP forward used by [`try_run_inference`].
+///
+/// See [`infer_tiny_mlp`] for the ReLU-after-hidden / raw-final-layer
+/// convention.
+fn try_infer_tiny_mlp(mlp: &TinyMLP, inputs: &[FixedPoint]) -> Result<FixedPoint, AttestarError> {
+    let mut activations: Vec<FixedPoint> = inputs.to_vec();
+    let last = mlp.layers.len().saturating_sub(1);
+    for (idx, layer) in mlp.layers.iter().enumerate() {
+        let mut out = dense_forward(layer, &activations)?;
+        if idx != last {
+            // Quantized ReLU after every hidden layer. The single shared
+            // implementation lives in `crate::activation` so the native
+            // prover and the guest apply the exact same activation.
+            out = relu_vec(&out);
+        }
+        activations = out;
+    }
+    Ok(activations
+        .first()
+        .copied()
+        .unwrap_or(FixedPoint::from_raw(0, 16)))
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests_mlp {
+    use super::*;
+    use crate::models::{DenseLayer, Model, TinyMLP};
+
+    fn fp(x: f64) -> FixedPoint {
+        FixedPoint::quantize(x)
+    }
+
+    #[test]
+    fn single_layer_identity() {
+        // One input, one output, weight 1.0, bias 0.0 -> output equals input.
+        let layer = DenseLayer {
+            weights: vec![fp(1.0)],
+            biases: vec![fp(0.0)],
+            input_size: 1,
+            output_size: 1,
+        };
+        let model = Model::TinyMLP(TinyMLP {
+            layers: vec![layer],
+        });
+        let out = run_inference(&model, &[fp(0.7)]);
+        assert!((out.dequantize() - 0.7).abs() < 1e-2);
+    }
+}
+
+/// Return the index of the largest value in a fixed-point vector.
+///
+/// Used to turn a multi-output MLP layer into a class label without a
+/// (ZK-unfriendly) softmax: argmax of the logits equals argmax of softmax.
+/// On ties the lowest index wins, which matches the usual argmax convention
+/// for classification outputs.
+pub fn argmax(values: &[FixedPoint]) -> Option<usize> {
+    let mut best: Option<(usize, i64)> = None;
+    for (i, v) in values.iter().enumerate() {
+        if best.is_none_or(|(_, val)| v.value > val) {
+            best = Some((i, v.value));
+        }
+    }
+    best.map(|(i, _)| i)
+}
+
+/// Binary decision: compare a score against a threshold.
+///
+/// Returns `1` if `score >= threshold`, otherwise `0`.
+/// This is a ZK-friendly comparison (single comparison + select).
+pub fn binary_decision(score: FixedPoint, threshold: FixedPoint) -> i64 {
+    if score.value >= threshold.value {
+        1
+    } else {
+        0
+    }
+}
+
+/// Run inference and return both the raw score and the decision (class label).
+///
+/// For logistic regression: returns (score, binary_decision(score, threshold))
+/// For TinyMLP: returns (first_output, argmax(all_outputs))
+/// For decision tree: returns (leaf_value, 0) (no multi-class decision)
+///
+/// The decision is deterministic and reproducible off-chain and on-chain.
+pub fn run_inference_with_decision(model: &Model, inputs: &[FixedPoint]) -> (FixedPoint, i64) {
+    match model {
+        Model::DecisionTree(tree) => {
+            let score = infer_decision_tree(tree, inputs);
+            (score, 0) // Decision trees return the leaf value directly
+        }
+        Model::LogisticRegression(lr) => {
+            let score = infer_logistic_regression(lr, inputs);
+            let decision = binary_decision(score, lr.decision_threshold);
+            (score, decision)
+        }
+        Model::TinyMLP(mlp) => {
+            let logits =
+                try_infer_tiny_mlp_all_outputs(mlp, inputs).expect("TinyMLP inference overflow");
+            let score = logits
+                .first()
+                .copied()
+                .unwrap_or(FixedPoint::from_raw(0, 16));
+            let decision = argmax(&logits).map(|i| i as i64).unwrap_or(0);
+            (score, decision)
+        }
+    }
+}
+
+/// Fallible TinyMLP forward that returns all output neurons (not just the first).
+///
+/// Used for multi-class argmax decisions. See [`infer_tiny_mlp`] for the
+/// ReLU-after-hidden / raw-final-layer convention.
+fn try_infer_tiny_mlp_all_outputs(
+    mlp: &TinyMLP,
+    inputs: &[FixedPoint],
+) -> Result<Vec<FixedPoint>, AttestarError> {
+    let mut activations: Vec<FixedPoint> = inputs.to_vec();
+    let last = mlp.layers.len().saturating_sub(1);
+    for (idx, layer) in mlp.layers.iter().enumerate() {
+        let mut out = dense_forward(layer, &activations)?;
+        if idx != last {
+            out = relu_vec(&out);
+        }
+        activations = out;
+    }
+    Ok(activations)
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests_argmax {
+    use super::*;
+
+    #[test]
+    fn argmax_picks_highest_logit() {
+        let logits = vec![
+            FixedPoint::quantize(0.1),
+            FixedPoint::quantize(0.9),
+            FixedPoint::quantize(0.4),
+        ];
+        assert_eq!(argmax(&logits), Some(1));
+    }
+
+    #[test]
+    fn argmax_breaks_ties_low() {
+        let logits = vec![
+            FixedPoint::quantize(1.0),
+            FixedPoint::quantize(1.0),
+            FixedPoint::quantize(0.5),
+        ];
+        assert_eq!(argmax(&logits), Some(0));
+    }
+}
+
+#[cfg(test)]
+mod tests_binary_decision {
+    use super::*;
+
+    #[test]
+    fn binary_decision_above_threshold() {
+        let score = FixedPoint::quantize(0.5);
+        let threshold = FixedPoint::quantize(0.0);
+        assert_eq!(binary_decision(score, threshold), 1);
+    }
+
+    #[test]
+    fn binary_decision_below_threshold() {
+        let score = FixedPoint::quantize(-0.5);
+        let threshold = FixedPoint::quantize(0.0);
+        assert_eq!(binary_decision(score, threshold), 0);
+    }
+
+    #[test]
+    fn binary_decision_at_threshold() {
+        let score = FixedPoint::quantize(0.0);
+        let threshold = FixedPoint::quantize(0.0);
+        assert_eq!(binary_decision(score, threshold), 1); // inclusive
+    }
+
+    #[test]
+    fn binary_decision_just_below_threshold() {
+        let score = FixedPoint::quantize(-0.001);
+        let threshold = FixedPoint::quantize(0.0);
+        assert_eq!(binary_decision(score, threshold), 0);
+    }
+
+    #[test]
+    fn binary_decision_just_above_threshold() {
+        let score = FixedPoint::quantize(0.001);
+        let threshold = FixedPoint::quantize(0.0);
+        assert_eq!(binary_decision(score, threshold), 1);
+    }
+}
+
+#[cfg(test)]
+mod tests_inference_with_decision {
+    use super::*;
+    use crate::models::{DenseLayer, LogisticRegression, Model, TinyMLP};
+
+    fn fp(x: f64) -> FixedPoint {
+        FixedPoint::quantize(x)
+    }
+
+    #[test]
+    fn logistic_regression_with_threshold_positive() {
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![fp(1.0)],
+            bias: fp(0.0),
+            decision_threshold: fp(0.0),
+        });
+        let inputs = vec![fp(0.5)];
+        let (score, decision) = run_inference_with_decision(&model, &inputs);
+        assert!((score.dequantize() - 0.5).abs() < 1e-3);
+        assert_eq!(decision, 1);
+    }
+
+    #[test]
+    fn logistic_regression_with_threshold_negative() {
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![fp(1.0)],
+            bias: fp(0.0),
+            decision_threshold: fp(1.0),
+        });
+        let inputs = vec![fp(0.5)];
+        let (score, decision) = run_inference_with_decision(&model, &inputs);
+        assert!((score.dequantize() - 0.5).abs() < 1e-3);
+        assert_eq!(decision, 0); // 0.5 < 1.0
+    }
+
+    #[test]
+    fn mlp_argmax_decision() {
+        let layer = DenseLayer {
+            weights: vec![fp(1.0), fp(0.1), fp(0.1), fp(0.1)], // 2x2 matrix
+            biases: vec![fp(0.0), fp(0.0)],
+            input_size: 2,
+            output_size: 2,
+        };
+        let model = Model::TinyMLP(TinyMLP {
+            layers: vec![layer],
+        });
+        let inputs = vec![fp(1.0), fp(0.0)];
+        let (score, decision) = run_inference_with_decision(&model, &inputs);
+        // First output: 1.0*1.0 + 0.1*0.0 = 1.0
+        // Second output: 0.1*1.0 + 0.1*0.0 = 0.1
+        // Argmax should be 0
+        assert!((score.dequantize() - 1.0).abs() < 1e-3);
+        assert_eq!(decision, 0);
+    }
+
+    #[test]
+    fn mlp_argmax_golden_vector_3class() {
+        // Golden vector for 3-class classification
+        let layer = DenseLayer {
+            weights: vec![
+                fp(0.5),
+                fp(-0.2),
+                fp(0.1), // Class 0 weights
+                fp(-0.3),
+                fp(0.8),
+                fp(0.2), // Class 1 weights
+                fp(0.1),
+                fp(0.1),
+                fp(-0.5), // Class 2 weights
+            ],
+            biases: vec![fp(0.1), fp(-0.1), fp(0.0)],
+            input_size: 3,
+            output_size: 3,
+        };
+        let model = Model::TinyMLP(TinyMLP {
+            layers: vec![layer],
+        });
+
+        // Test case 1: Should pick class 1
+        let inputs1 = vec![fp(0.0), fp(1.0), fp(0.0)];
+        let (_score1, decision1) = run_inference_with_decision(&model, &inputs1);
+        assert_eq!(decision1, 1);
+
+        // Test case 2: Should pick class 0
+        let inputs2 = vec![fp(1.0), fp(0.0), fp(0.0)];
+        let (_score2, decision2) = run_inference_with_decision(&model, &inputs2);
+        assert_eq!(decision2, 0);
+
+        // Test case 3: Should pick class 2
+        let inputs3 = vec![fp(0.0), fp(0.0), fp(-1.0)];
+        let (_score3, decision3) = run_inference_with_decision(&model, &inputs3);
+        assert_eq!(decision3, 2);
+    }
+
+    #[test]
+    fn decision_tree_returns_zero_decision() {
+        use crate::models::{DecisionTree, TreeNode};
+        let tree = DecisionTree {
+            num_features: 1,
+            nodes: vec![TreeNode::Leaf { value: fp(42.0) }],
+        };
+        let model = Model::DecisionTree(tree);
+        let inputs = vec![fp(0.5)];
+        let (score, decision) = run_inference_with_decision(&model, &inputs);
+        assert!((score.dequantize() - 42.0).abs() < 1e-3);
+        assert_eq!(decision, 0); // Decision trees don't produce class labels
+    }
+}
+
+/// Run inference for each input row, returning one output per row.
+///
+/// This is the all-valid fast path and panics on a malformed or overflowing
+/// row. Prefer [`try_run_batch`] when caller data may be out of spec.
+pub fn run_batch(model: &Model, rows: &[Vec<FixedPoint>]) -> Vec<FixedPoint> {
+    rows.iter().map(|row| run_inference(model, row)).collect()
+}
+
+/// Run inference for each input row and return one result per row.
+///
+/// Error shape is **per-row** (`Vec<Result<FixedPoint, AttestarError>>`), not
+/// fail-fast. A malformed or overflowing row becomes `Err` at that index and
+/// does not abort the rest of the batch. Empty `rows` returns an empty `Vec`.
+///
+/// This is the batch counterpart of [`try_run_inference`]. Prefer it over
+/// [`run_batch`] whenever caller data may be out of spec.
+pub fn try_run_batch(
+    model: &Model,
+    rows: &[Vec<FixedPoint>],
+) -> Vec<Result<FixedPoint, AttestarError>> {
+    rows.iter()
+        .map(|row| try_run_inference(model, row))
+        .collect()
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests_batch {
+    use super::*;
+    use crate::models::{LogisticRegression, Model};
+
+    fn one_feature_lr() -> Model {
+        Model::LogisticRegression(LogisticRegression {
+            weights: vec![FixedPoint::quantize(1.0)],
+            bias: FixedPoint::quantize(0.0),
+            decision_threshold: FixedPoint::quantize(0.0),
+        })
+    }
+
+    #[test]
+    fn batch_matches_single() {
+        let model = one_feature_lr();
+        let rows = vec![
+            vec![FixedPoint::quantize(0.5)],
+            vec![FixedPoint::quantize(0.9)],
+        ];
+        let batched = run_batch(&model, &rows);
+        for (row, out) in rows.iter().zip(batched.iter()) {
+            assert_eq!(run_inference(&model, row).value, out.value);
+        }
+    }
+
+    #[test]
+    fn try_batch_mixed_feature_count_keeps_valid_rows() {
+        let model = one_feature_lr();
+        let good_a = vec![FixedPoint::quantize(0.5)];
+        let bad = vec![FixedPoint::quantize(0.1), FixedPoint::quantize(0.2)];
+        let good_b = vec![FixedPoint::quantize(0.9)];
+        let rows = vec![good_a.clone(), bad, good_b.clone()];
+
+        let panicked = std::panic::catch_unwind(|| try_run_batch(&model, &rows));
+        assert!(
+            panicked.is_ok(),
+            "try_run_batch must not panic on a malformed row"
+        );
+        let results = panicked.unwrap();
+
+        assert_eq!(results.len(), 3);
+        assert_eq!(
+            results[0].as_ref().map(|o| o.value),
+            Ok(run_inference(&model, &good_a).value)
+        );
+        assert_eq!(
+            results[1],
+            Err(AttestarError::FeatureCountMismatch {
+                expected: 1,
+                got: 2,
+            })
+        );
+        assert_eq!(
+            results[2].as_ref().map(|o| o.value),
+            Ok(run_inference(&model, &good_b).value)
+        );
+    }
+
+    #[test]
+    fn try_batch_overflow_row_does_not_drop_neighbors() {
+        let big = FixedPoint::from_raw(i64::MAX / 2, 16);
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![big],
+            bias: FixedPoint::quantize(0.0),
+            decision_threshold: FixedPoint::quantize(0.0),
+        });
+        let good = vec![FixedPoint::quantize(0.5)];
+        let overflow = vec![big];
+        let rows = vec![good.clone(), overflow, good.clone()];
+
+        let results = try_run_batch(&model, &rows);
+        assert_eq!(results.len(), 3);
+        assert_eq!(
+            results[0].as_ref().map(|o| o.value),
+            Ok(run_inference(&model, &good).value)
+        );
+        assert_eq!(results[1], Err(AttestarError::ArithmeticOverflow));
+        assert_eq!(
+            results[2].as_ref().map(|o| o.value),
+            Ok(run_inference(&model, &good).value)
+        );
+    }
+
+    #[test]
+    fn try_batch_empty_rows_returns_empty() {
+        let model = one_feature_lr();
+        let results = try_run_batch(&model, &[]);
+        assert!(results.is_empty());
+    }
+}
+
+/// Validated inference that returns an error instead of panicking on a
+/// feature-count mismatch, empty input, invalid TinyMLP topology, or
+/// fixed-point overflow.
+pub fn try_run_inference(
+    model: &Model,
+    inputs: &[FixedPoint],
+) -> Result<FixedPoint, AttestarError> {
+    if inputs.is_empty() {
+        return Err(AttestarError::FeatureCountMismatch {
+            expected: model.num_features(),
+            got: 0,
+        });
+    }
+    let expected = model.num_features();
+    if expected != 0 && inputs.len() != expected {
+        return Err(AttestarError::FeatureCountMismatch {
+            expected,
+            got: inputs.len(),
+        });
+    }
+    match model {
+        Model::LogisticRegression(lr) => try_infer_logistic_regression(lr, inputs),
+        Model::TinyMLP(mlp) => {
+            mlp.validate()?;
+            try_infer_tiny_mlp(mlp, inputs)
+        }
+        Model::DecisionTree(tree) => try_infer_decision_tree(tree, inputs),
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests_validated {
+    use super::*;
+    use crate::models::{LogisticRegression, Model};
+
+    #[test]
+    fn empty_input_is_rejected() {
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![FixedPoint::quantize(1.0)],
+            bias: FixedPoint::quantize(0.0),
+            decision_threshold: FixedPoint::quantize(0.0),
+        });
+        assert!(try_run_inference(&model, &[]).is_err());
+    }
+
+    #[test]
+    fn logistic_regression_overflow_boundary_returns_error() {
+        let big = FixedPoint::from_raw(i64::MAX / 2, 16);
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![big],
+            bias: FixedPoint::quantize(0.0),
+            decision_threshold: FixedPoint::quantize(0.0),
+        });
+        let inputs = vec![big];
+        assert_eq!(
+            try_run_inference(&model, &inputs),
+            Err(AttestarError::ArithmeticOverflow)
+        );
+    }
+
+    #[test]
+    fn logistic_regression_mixed_scale_returns_error() {
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![FixedPoint::from_raw(100, 16), FixedPoint::from_raw(100, 16)],
+            bias: FixedPoint::from_raw(0, 16),
+            decision_threshold: FixedPoint::from_raw(0, 16),
+        });
+        let inputs = vec![FixedPoint::from_raw(100, 16), FixedPoint::from_raw(100, 8)];
+        assert!(matches!(
+            try_run_inference(&model, &inputs),
+            Err(AttestarError::QuantizationError(_))
+        ));
+    }
+
+    #[test]
+    fn logistic_regression_in_range_parity() {
+        let model = Model::LogisticRegression(LogisticRegression {
+            weights: vec![FixedPoint::quantize(2.5), FixedPoint::quantize(-1.5)],
+            bias: FixedPoint::quantize(0.5),
+            decision_threshold: FixedPoint::quantize(0.0),
+        });
+        let inputs = vec![FixedPoint::quantize(4.0), FixedPoint::quantize(2.0)];
+        let res = try_run_inference(&model, &inputs).unwrap();
+        assert!((res.dequantize() - 7.5).abs() < 1e-3);
+        assert_eq!(run_inference(&model, &inputs).value, res.value);
+    }
+}

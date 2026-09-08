@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with zkml-soroban
+about: Report a problem with Attestar
 labels: bug
 ---
 

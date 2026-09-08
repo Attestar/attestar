@@ -3,7 +3,7 @@
 Train a decision tree model on synthetic KYC data and export to ONNX.
 
 This script trains a decision tree classifier for KYC risk scoring and exports
-it to ONNX format for use with zkml-soroban.
+it to ONNX format for use with Attestar.
 """
 
 import pandas as pd
@@ -109,7 +109,7 @@ def main():
     print("\nTraining complete!")
     print(f"ONNX model saved to: {onnx_output_path}")
     print("\nNext steps:")
-    print("1. Import the ONNX model using zkml-prover")
+    print("1. Import the ONNX model using attestar-prover")
     print("2. Quantize the model for fixed-point inference")
     print("3. Generate proofs using the prover")
 

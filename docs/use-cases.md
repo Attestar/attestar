@@ -1,6 +1,6 @@
 # Use Cases
 
-This document describes the primary use cases targeted by zkml-soroban,
+This document describes the primary use cases targeted by Attestar,
 explaining why each is a natural fit for provable ML inference on the
 Stellar network.
 
@@ -52,7 +52,7 @@ anchor's KYC assessment was performed correctly, or even that it was
 performed at all. This forces each anchor to duplicate the assessment,
 increasing costs and friction.
 
-### Solution with zkml-soroban
+### Solution with Attestar
 
 A KYC scoring model (decision tree or logistic regression) is trained on
 historical compliance data and registered on-chain via its Poseidon hash
@@ -96,7 +96,7 @@ full details of their customer relationships or internal scoring models.
 Current approaches rely on third-party audits or platform-level trust,
 both of which introduce delays and counterparty risk.
 
-### Solution with zkml-soroban
+### Solution with Attestar
 
 A risk assessment model evaluates invoices based on features such as:
 debtor payment history, invoice amount, days outstanding, industry sector,
@@ -142,7 +142,7 @@ income, debt levels, payment history, and employment status. Sharing this
 data with every potential lender exposes users to privacy risks and creates
 regulatory compliance burdens (GDPR, CCPA, and similar frameworks).
 
-### Solution with zkml-soroban
+### Solution with Attestar
 
 A credit scoring model runs entirely on the user's side (or within a
 trusted prover enclave):
@@ -169,7 +169,7 @@ a criterion without revealing the evidence.
 
 Boundless (a RISC Zero initiative) has partnered with Google Cloud to
 enable ZK proofs of AI model outputs, specifically targeting privacy-
-preserving applications. zkml-soroban brings this capability natively to
+preserving applications. Attestar brings this capability natively to
 Stellar, where institutional lenders and anchor-based lending platforms
 can integrate provable credit assessments directly into their transaction
 flows.

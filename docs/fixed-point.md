@@ -1,7 +1,7 @@
 # Fixed-Point Arithmetic
 
 ZK circuits operate over finite fields and cannot represent floating-point
-numbers natively. zkml-soroban maps all model weights, activations, and inputs
+numbers natively. Attestar maps all model weights, activations, and inputs
 into a fixed-point representation (`Q16.16` by default) so that inference is a
 sequence of integer operations that a circuit can constrain.
 

@@ -20,5 +20,5 @@ accumulation bounds are documented in the devlog.
 
 ## Reviewing cryptographic code
 
-Changes under `crates/zkml-verifier` and `commitment.rs` require maintainer
+Changes under `crates/attestar-verifier` and `commitment.rs` require maintainer
 review. Unsafe code is rejected unless explicitly justified.

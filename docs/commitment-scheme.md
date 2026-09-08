@@ -1,6 +1,6 @@
 # Poseidon Commitment Scheme
 
-This document specifies the consensus-critical commitment scheme used for model and input binding in zkml-soroban. The scheme uses Poseidon hash over the BN254 scalar field, matching the Soroban host functions from CAP-0075.
+This document specifies the consensus-critical commitment scheme used for model and input binding in Attestar. The scheme uses Poseidon hash over the BN254 scalar field, matching the Soroban host functions from CAP-0075.
 
 ## Overview
 
@@ -311,7 +311,7 @@ This allows off-chain components to check whether a proof has already been used 
 
 ## Test Vectors
 
-Test vectors are provided in the `zkml-common` crate to ensure off-chain and on-chain implementations produce identical digests. See `crates/zkml-common/tests/commitment_cross_check.rs` for the cross-check test.
+Test vectors are provided in the `attestar-common` crate to ensure off-chain and on-chain implementations produce identical digests. See `crates/attestar-common/tests/commitment_cross_check.rs` for the cross-check test.
 
 ## References
 

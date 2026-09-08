@@ -2,5 +2,5 @@
 *       @diegoveme
 
 # Cryptographic surface needs careful review.
-/crates/zkml-verifier/   @diegoveme
-/crates/zkml-common/src/commitment.rs   @diegoveme
+/crates/attestar-verifier/   @diegoveme
+/crates/attestar-common/src/commitment.rs   @diegoveme

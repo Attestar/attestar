@@ -1,0 +1,23 @@
+//! # attestar-common
+//!
+//! Shared types, data structures, and utilities used across the
+//! `attestar-prover` and `attestar-verifier` crates.
+//!
+//! This crate deliberately depends on neither Soroban nor RISC Zero so the
+//! same code compiles for native host tests and for the zkVM guest.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+pub mod activation;
+pub mod commitment;
+pub mod error;
+pub mod fixed_point;
+pub mod inference;
+pub mod merkle;
+pub mod models;
+pub mod proof;
+pub mod tensor;
+
+pub use error::AttestarError;

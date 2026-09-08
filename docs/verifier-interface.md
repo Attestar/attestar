@@ -1,6 +1,6 @@
 # Verifier Contract Interface
 
-The `zkml-verifier` Soroban contract exposes the following entrypoints.
+The `attestar-verifier` Soroban contract exposes the following entrypoints.
 
 | Function                 | Description                                        |
 | ------------------------ | -------------------------------------------------- |
@@ -42,7 +42,7 @@ is restored. The contract therefore bumps instance TTL in two places:
 - at the end of `initialize` (the contract is now live)
 - after every **successful** `verify_inference` (active use, no external keeper)
 
-Named constants live next to the storage keys in `crates/zkml-verifier/src/lib.rs`:
+Named constants live next to the storage keys in `crates/attestar-verifier/src/lib.rs`:
 
 | Constant | Value | Rationale |
 | -------- | ----- | --------- |

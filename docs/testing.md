@@ -10,9 +10,9 @@ cargo test --workspace
 
 - **Unit tests** live next to the code (`#[cfg(test)] mod tests`) and cover the
   numeric core, commitments, inference, and quantization.
-- **Integration tests** under `crates/zkml-prover/tests` import bundled example
+- **Integration tests** under `crates/attestar-prover/tests` import bundled example
   models and run them end to end.
-- **Contract tests** in `zkml-verifier` use the Soroban test environment to
+- **Contract tests** in `attestar-verifier` use the Soroban test environment to
   exercise `initialize`, `verify_inference`, and the query methods.
 
 ## What to test in a PR

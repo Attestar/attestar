@@ -2,7 +2,7 @@
 
 This document provides a detailed technical description of the cryptographic
 primitives, protocol features, design decisions, and implementation strategies
-that underpin zkml-soroban.
+that underpin Attestar.
 
 ---
 
@@ -59,7 +59,7 @@ The Soroban host functions support:
 - Operations over both BLS12-381 Fr and BN254 Fr field elements.
 - Standard domain separation for different use cases.
 
-In zkml-soroban, Poseidon is used for two critical purposes:
+In Attestar, Poseidon is used for two critical purposes:
 
 1. **Model commitment**: A Poseidon hash of all quantized model parameters
    serves as the on-chain identifier for a specific model version. This
@@ -120,7 +120,7 @@ Key capabilities enabled by X-Ray:
 ### Protocol 26: Yardstick
 
 Entered testnet April 16, 2026, Yardstick adds benchmarking tools and new
-host functions. While not directly required by zkml-soroban, the
+host functions. While not directly required by Attestar, the
 benchmarking infrastructure will be valuable for measuring and optimizing
 verification gas costs.
 
@@ -134,7 +134,7 @@ constraint system. The solution is fixed-point arithmetic.
 
 ### Representation
 
-zkml-soroban uses the Q16.16 format:
+Attestar uses the Q16.16 format:
 
 - Values are multiplied by `2^16 = 65536` and stored as 64-bit signed
   integers.
@@ -227,7 +227,7 @@ cryptographic proofs of correct execution.
 
 **Proof generation pipeline:**
 
-1. The inference logic (from `zkml-prover::inference`) is compiled as a
+1. The inference logic (from `attestar-prover::inference`) is compiled as a
    RISC Zero guest program targeting the RISC-V instruction set.
 2. The host program provides the model and inputs to the guest via
    standard I/O.

@@ -1,24 +1,24 @@
 <p align="center">
-  <img src="assets/logo.png" alt="zkml-soroban logo" width="200">
+  <img src="assets/logo.png" alt="Attestar logo" width="200">
 </p>
 
-<h1 align="center">zkml-soroban</h1>
+<h1 align="center">Attestar</h1>
 
 <p align="center"><strong>A Provable ML Inference Runtime for Stellar</strong></p>
 
 <p align="center">
-  <a href="https://github.com/ZKML-Soroban/ZKML-Soroban/actions/workflows/ci.yml">
-    <img src="https://github.com/ZKML-Soroban/ZKML-Soroban/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://github.com/Attestar/attestar/actions/workflows/ci.yml">
+    <img src="https://github.com/Attestar/attestar/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache 2.0">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-0E7490.svg" alt="License: Apache 2.0">
   </a>
-  <img src="https://img.shields.io/badge/version-0.2.0-8A2BE2.svg" alt="Version 0.2.0">
-  <img src="https://img.shields.io/badge/built%20for-Stellar%20%C2%B7%20Soroban-7D00FF.svg" alt="Built for Stellar Soroban">
-  <img src="https://img.shields.io/badge/rust-stable-orange.svg" alt="Rust stable">
+  <img src="https://img.shields.io/badge/version-0.2.0-22D3EE.svg" alt="Version 0.2.0">
+  <img src="https://img.shields.io/badge/built%20for-Stellar%20%C2%B7%20Soroban-0891B2.svg" alt="Built for Stellar Soroban">
+  <img src="https://img.shields.io/badge/rust-stable-67E8F9.svg" alt="Rust stable">
 </p>
 
-zkml-soroban is the first runtime that enables executing small machine learning
+Attestar is the first runtime that enables executing small machine learning
 models off-chain and cryptographically verifying the correctness of their
 inference on the Stellar network through Soroban smart contracts.
 
@@ -77,7 +77,7 @@ The system consists of two primary components:
                     Off-chain                          On-chain
               +-------------------+             +-------------------+
               |                   |             |                   |
-  ONNX Model  |   zkml-prover    |   Groth16   |  zkml-verifier    |
+  ONNX Model  |  attestar-prover  |   Groth16   | attestar-verifier |
   ----------->|                   |   proof     |                   |
               |  1. Import model  |------------>|  1. Verify proof  |
   Input Data  |  2. Quantize      |             |  2. Check inputs  |
@@ -86,7 +86,7 @@ The system consists of two primary components:
               +-------------------+             +-------------------+
                         |                                 |
                         v                                 v
-                   zkml-common                    Stellar Ledger
+                 attestar-common                  Stellar Ledger
               (shared types & structures)       (immutable record)
 ```
 
@@ -134,7 +134,7 @@ arithmetic for compatibility with ZK circuit constraints.
 ## Project Structure
 
 ```
-zkml-soroban/
+attestar/
 ├── Cargo.toml                  Root workspace manifest
 ├── README.md
 ├── LICENSE                     Apache 2.0
@@ -143,14 +143,14 @@ zkml-soroban/
 ├── .gitignore
 │
 ├── crates/
-│   ├── zkml-common/            Shared types and utilities
+│   ├── attestar-common/        Shared types and utilities
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── fixed_point.rs  Fixed-point arithmetic
 │   │       ├── models.rs       Model representations
 │   │       └── proof.rs        Proof data structures
 │   │
-│   ├── zkml-prover/            Off-chain prover
+│   ├── attestar-prover/        Off-chain prover
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── inference.rs    Model inference engine
@@ -158,7 +158,7 @@ zkml-soroban/
 │   │       ├── prover.rs       ZK proof generation
 │   │       └── quantization.rs Weight quantization
 │   │
-│   └── zkml-verifier/          On-chain Soroban contract
+│   └── attestar-verifier/      On-chain Soroban contract
 │       └── src/
 │           └── lib.rs          Verification contract
 │
@@ -190,7 +190,7 @@ zkml-soroban/
 cargo build
 
 # Build the verifier contract for deployment
-cargo build --release --target wasm32-unknown-unknown -p zkml-verifier
+cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
 
 # Run all tests
 cargo test --workspace
@@ -200,8 +200,8 @@ cargo test --workspace
 
 ```bash
 # Clone the repository
-git clone https://github.com/diegoveme/ZKML-Soroban.git
-cd ZKML-Soroban
+git clone https://github.com/diegoveme/attestar.git
+cd Attestar
 
 # Build the project
 cargo build

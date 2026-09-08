@@ -1,6 +1,6 @@
 # KYC Demo - End-to-End Provable ML Inference on Stellar Testnet
 
-This demo demonstrates end-to-end provable KYC risk scoring using zkml-soroban on Stellar testnet.
+This demo demonstrates end-to-end provable KYC risk scoring using Attestar on Stellar testnet.
 
 ## Overview
 
@@ -87,7 +87,7 @@ These require implementation of:
 
 ```bash
 # Run the Rust demo runner
-cargo run -p zkml-demo -- --model kyc_decision_tree.onnx --contract-id <CONTRACT_ID>
+cargo run -p attestar-demo -- --model kyc_decision_tree.onnx --contract-id <CONTRACT_ID>
 ```
 
 ## Current Status
@@ -97,7 +97,7 @@ cargo run -p zkml-demo -- --model kyc_decision_tree.onnx --contract-id <CONTRACT
 - Synthetic KYC dataset generation
 - Decision tree training and ONNX export
 - Deployment script scaffolding
-- Rust zkml-demo crate skeleton
+- Rust attestar-demo crate skeleton
 
 ### ⏳ Pending Dependencies
 
@@ -106,22 +106,22 @@ The end-to-end demo depends on the following features that are not yet implement
 1. **STARK→Groth16 Compression** (Milestone 1.7)
    - Currently returns `Err("not yet implemented")`
    - Requires investigation of risc0-groth16 3.0.5 API
-   - See: `crates/zkml-prover/src/prover.rs`
+   - See: `crates/attestar-prover/src/prover.rs`
 
 2. **Verification Key Export** (Milestone 1.7)
    - Currently stubbed with TODO comment
    - Requires risc0-groth16 VK extraction API
-   - See: `crates/zkml-prover/src/prover.rs`
+   - See: `crates/attestar-prover/src/prover.rs`
 
 3. **Poseidon Commitments** (Milestone 1.8)
-   - Infrastructure exists in zkml-common
+   - Infrastructure exists in attestar-common
    - Integration with model parameters needed
-   - See: `crates/zkml-common/src/commitment.rs`
+   - See: `crates/attestar-common/src/commitment.rs`
 
 4. **Real Groth16 Verification** (Milestone 1.8)
    - Verifier contract structure exists
    - BN254 pairing check implementation needed
-   - See: `crates/zkml-verifier/src/lib.rs`
+   - See: `crates/attestar-verifier/src/lib.rs`
 
 ## Success Criteria
 
@@ -156,11 +156,11 @@ The synthetic KYC dataset includes 10 features:
 
 ### Next Steps
 
-1. Implement STARK→Groth16 compression in `zkml-prover`
+1. Implement STARK→Groth16 compression in `attestar-prover`
 2. Implement verification key extraction
 3. Implement Poseidon commitment for model parameters
 4. Implement real BN254 pairing check in verifier
-5. Implement demo runner pipeline in `zkml-demo` crate
+5. Implement demo runner pipeline in `attestar-demo` crate
 6. Add metrics output and success criteria checks
 7. Validate README walkthrough with another contributor
 

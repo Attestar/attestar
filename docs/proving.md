@@ -39,7 +39,7 @@ Committed in order by the guest:
 ## Security note: `commitment_hash`
 
 Journal fields `model_hash` and `input_hash` are produced by
-`zkml_common::commitment::commitment_hash`. **That function is not
+`attestar_common::commitment::commitment_hash`. **That function is not
 collision-resistant** today (wrapping add/multiply mixer). It must not gate any
 on-chain trust or access decision until issue #13 replaces it with Poseidon
 (CAP-0075). Phase 1 uses it only so host and guest agree during development and
@@ -56,9 +56,9 @@ dev-mode receipt cross-checks.
 ## Shared code layout
 
 ```
-zkml-common          models, FixedPoint, inference, commitment_hash
-methods/guest        zkVM guest (depends only on zkml-common)
-zkml-prover          host: generate_receipt, generate_proof
+attestar-common          models, FixedPoint, inference, commitment_hash
+methods/guest        zkVM guest (depends only on attestar-common)
+attestar-prover          host: generate_receipt, generate_proof
 ```
 
 ## Related issues

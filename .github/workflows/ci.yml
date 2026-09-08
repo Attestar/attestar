@@ -34,8 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build zkml-common without std
-        run: cargo build -p zkml-common --no-default-features
+      - name: Build attestar-common without std
+        run: cargo build -p attestar-common --no-default-features
 
   zkvm:
     runs-on: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
           RISC0_DEV_MODE: "1"
         run: |
           export PATH="$HOME/.risc0/bin:$PATH"
-          cargo test -p zkml-prover --features zkvm --verbose
+          cargo test -p attestar-prover --features zkvm --verbose
 
   groth16:
     runs-on: ubuntu-latest
@@ -79,6 +79,6 @@ jobs:
           RISC0_DEV_MODE: "1"
         run: |
           export PATH="$HOME/.risc0/bin:$PATH"
-          cargo check -p zkml-prover --features groth16 --verbose
+          cargo check -p attestar-prover --features groth16 --verbose
       - name: Check bonsai feature compiles
-        run: cargo check -p zkml-prover --features bonsai
+        run: cargo check -p attestar-prover --features bonsai

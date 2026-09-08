@@ -16,7 +16,7 @@ Proving-time benchmarks will be added once the RISC Zero pipeline lands.
 
 ## On-Chain Verifier Resource Budget (Soroban)
 
-Resource budget consumed by the `ZkmlVerifierContract` during a complete `verify_inference` call (including public input L vector assembly via G1 operations and BN254 pairing check over Protocol 25 host functions), measured via the Soroban SDK cost estimation harness (`env.cost_estimate().budget()`):
+Resource budget consumed by the `AttestarVerifierContract` during a complete `verify_inference` call (including public input L vector assembly via G1 operations and BN254 pairing check over Protocol 25 host functions), measured via the Soroban SDK cost estimation harness (`env.cost_estimate().budget()`):
 
 | Verification Operation | CPU Instructions | Memory (Bytes) | Regression Threshold (Max CPU) |
 | ---------------------- | ---------------- | -------------- | ------------------------------ |

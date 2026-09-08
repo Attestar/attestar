@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the system architecture of zkml-soroban, covering the
+This document describes the system architecture of Attestar, covering the
 high-level design, component responsibilities, data flow, and the two
 implementation routes planned for proof generation.
 
@@ -11,9 +11,9 @@ implementation routes planned for proof generation.
 - [Design Principles](#design-principles)
 - [High-Level Architecture](#high-level-architecture)
 - [Component Breakdown](#component-breakdown)
-  - [zkml-common](#zkml-common)
-  - [zkml-prover](#zkml-prover)
-  - [zkml-verifier](#zkml-verifier)
+  - [attestar-common](#attestar-common)
+  - [attestar-prover](#attestar-prover)
+  - [attestar-verifier](#attestar-verifier)
 - [Data Flow](#data-flow)
 - [Route A vs Route B](#route-a-vs-route-b)
 - [On-Chain Storage Model](#on-chain-storage-model)
@@ -74,7 +74,7 @@ The system follows a standard off-chain prover / on-chain verifier pattern.
 |                         On-Chain (Soroban)                        |
 |                                                                   |
 |  +------------------------------------------------------------+  |
-|  |                    zkml-verifier contract                   |  |
+|  |                 attestar-verifier contract                  |  |
 |  |                                                             |  |
 |  |  1. Deserialize proof points (A, B, C)                     |  |
 |  |  2. Reconstruct public input vector                        |  |
@@ -89,9 +89,9 @@ The system follows a standard off-chain prover / on-chain verifier pattern.
 
 ## Component Breakdown
 
-### zkml-common
+### attestar-common
 
-**Crate path:** `crates/zkml-common`
+**Crate path:** `crates/attestar-common`
 
 Shared library containing types and utilities used by both the prover and
 verifier.
@@ -105,9 +105,9 @@ verifier.
 This crate has no dependencies on Soroban SDK or RISC Zero, ensuring it can
 be compiled for any target.
 
-### zkml-prover
+### attestar-prover
 
-**Crate path:** `crates/zkml-prover`
+**Crate path:** `crates/attestar-prover`
 
 Off-chain component responsible for the full inference-to-proof pipeline.
 
@@ -129,9 +129,9 @@ Off-chain component responsible for the full inference-to-proof pipeline.
   every hidden layer (`max(0, x)` on the raw Q16.16 integer). The final
   layer emits raw linear scores; products use checked Q16.16 multiply.
 
-### zkml-verifier
+### attestar-verifier
 
-**Crate path:** `crates/zkml-verifier`
+**Crate path:** `crates/attestar-verifier`
 
 Soroban smart contract compiled to WASM and deployed to the Stellar network.
 
@@ -159,7 +159,7 @@ natively, keeping contract execution gas costs low.
 A complete inference verification cycle proceeds as follows:
 
 1. **Model preparation** (one-time): The model owner exports a trained model
-   to ONNX, imports it into zkml-prover, and quantizes all parameters.
+   to ONNX, imports it into attestar-prover, and quantizes all parameters.
    A Poseidon hash of the quantized parameters is computed and registered
    on-chain via `initialize`.
 

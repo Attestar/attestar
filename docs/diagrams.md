@@ -1,6 +1,6 @@
 # Technical Diagrams
 
-This document contains visual representations of the zkml-soroban system
+This document contains visual representations of the Attestar system
 architecture, data flows, and component relationships. All diagrams use
 Mermaid syntax for version-controlled rendering.
 
@@ -31,7 +31,7 @@ graph TB
     end
 
     subgraph "Stellar Network"
-        CONTRACT["zkml-verifier Contract"]
+        CONTRACT["attestar-verifier Contract"]
         LEDGER["Stellar Ledger"]
         BN254["BN254 Host Functions"]
         POSEIDON["Poseidon Host Functions"]
@@ -54,9 +54,9 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant User
-    participant Prover as zkml-prover
+    participant Prover as attestar-prover
     participant zkVM as RISC Zero zkVM
-    participant Contract as zkml-verifier
+    participant Contract as attestar-verifier
     participant Stellar as Stellar Network
 
     User->>Prover: Submit model + input features
@@ -144,9 +144,9 @@ graph LR
 
 ```mermaid
 graph TD
-    COMMON["zkml-common\n(shared types)"]
-    PROVER["zkml-prover\n(off-chain)"]
-    VERIFIER["zkml-verifier\n(on-chain)"]
+    COMMON["attestar-common\n(shared types)"]
+    PROVER["attestar-prover\n(off-chain)"]
+    VERIFIER["attestar-verifier\n(on-chain)"]
     SERDE["serde"]
     RISC0["risc0-zkvm"]
     SOROBAN["soroban-sdk"]
@@ -177,11 +177,11 @@ graph TD
     N1 -->|"Yes (left)"| N3["Node 3: Leaf\nclass = 0"]
     N1 -->|"No (right)"| N4["Node 4: Leaf\nclass = 1"]
 
-    style ROOT fill:#334155,stroke:#94a3b8,color:#e2e8f0
-    style N1 fill:#334155,stroke:#94a3b8,color:#e2e8f0
-    style N2 fill:#065f46,stroke:#34d399,color:#d1fae5
-    style N3 fill:#065f46,stroke:#34d399,color:#d1fae5
-    style N4 fill:#065f46,stroke:#34d399,color:#d1fae5
+    style ROOT fill:#0E1630,stroke:#7C8BA8,color:#A9BBD4
+    style N1 fill:#0E1630,stroke:#7C8BA8,color:#A9BBD4
+    style N2 fill:#07323D,stroke:#22D3EE,color:#A5F3FC
+    style N3 fill:#07323D,stroke:#22D3EE,color:#A5F3FC
+    style N4 fill:#07323D,stroke:#22D3EE,color:#A5F3FC
 ```
 
 Each split node becomes a comparison constraint in the circuit:

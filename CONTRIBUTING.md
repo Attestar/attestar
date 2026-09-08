@@ -1,6 +1,6 @@
-# Contributing to zkml-soroban
+# Contributing to Attestar
 
-Thank you for your interest in contributing to zkml-soroban. This document
+Thank you for your interest in contributing to Attestar. This document
 provides guidelines and instructions for contributing.
 
 ## Table of Contents
@@ -40,7 +40,7 @@ code of conduct. By participating, you are expected to uphold this standard.
 cargo build
 
 # Build the verifier contract for deployment
-cargo build --release --target wasm32-unknown-unknown -p zkml-verifier
+cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
 
 # Run all tests
 cargo test --workspace
@@ -50,9 +50,9 @@ cargo test --workspace
 
 ```
 crates/
-  zkml-common/     Shared types (models, fixed-point, proof structures)
-  zkml-prover/     Off-chain inference and proof generation
-  zkml-verifier/   On-chain Soroban verification contract
+  attestar-common/     Shared types (models, fixed-point, proof structures)
+  attestar-prover/     Off-chain inference and proof generation
+  attestar-verifier/   On-chain Soroban verification contract
 docs/              Technical documentation
 ```
 

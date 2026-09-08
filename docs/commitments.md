@@ -1,6 +1,6 @@
 # Commitments
 
-zkml-soroban binds each proof to a specific model and input through 32-byte
+Attestar binds each proof to a specific model and input through 32-byte
 commitments.
 
 - **Model commitment**: a Poseidon hash over the quantized weights, biases, and

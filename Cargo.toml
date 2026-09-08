@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/zkml-common",
-    "crates/zkml-prover",
-    "crates/zkml-verifier",
-    "crates/zkml-demo",
+    "crates/attestar-common",
+    "crates/attestar-prover",
+    "crates/attestar-verifier",
+    "crates/attestar-demo",
 ]
 # methods/ is pulled in as a path dependency when the `zkvm` feature is enabled
-# on zkml-prover (keeps default workspace builds free of the RISC Zero toolchain).
+# on attestar-prover (keeps default workspace builds free of the RISC Zero toolchain).
 # Guest is its own workspace (standard RISC Zero layout).
 exclude = ["methods", "methods/guest"]
 
@@ -15,7 +15,7 @@ exclude = ["methods", "methods/guest"]
 version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/ZKML-Soroban/ZKML-Soroban"
+repository = "https://github.com/Attestar/attestar"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

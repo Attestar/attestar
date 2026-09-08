@@ -1,6 +1,6 @@
 [package]
-name = "zkml-methods"
-description = "RISC Zero method ELF and image ID for zkml-prover guest inference"
+name = "attestar-methods"
+description = "RISC Zero method ELF and image ID for attestar-prover guest inference"
 version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"

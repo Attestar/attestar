@@ -2,18 +2,18 @@
 
 ## Status
 
-The importer foundation is implemented in `crates/zkml-prover/src/onnx/`:
+The importer foundation is implemented in `crates/attestar-prover/src/onnx/`:
 
 1. Decode ONNX protobuf (`ModelProto`) via `prost`.
 2. Validate **per-domain** opset floors (see below).
 3. Walk graph nodes and allow only the supported operator set.
-4. Return a typed [`OnnxImportError`](../crates/zkml-prover/src/onnx/error.rs).
+4. Return a typed [`OnnxImportError`](../crates/attestar-prover/src/onnx/error.rs).
 
 **Parameter extraction is not implemented yet.** After validation succeeds,
 `import_onnx` returns `ExtractionNotImplemented` until:
 
-- [Issue #5](https://github.com/ZKML-Soroban/ZKML-Soroban/issues/5) — `TreeEnsembleClassifier` → `DecisionTree`
-- [Issue #6](https://github.com/ZKML-Soroban/ZKML-Soroban/issues/6) — `LinearClassifier` → `LogisticRegression`
+- [Issue #5](https://github.com/Attestar/attestar/issues/5) — `TreeEnsembleClassifier` → `DecisionTree`
+- [Issue #6](https://github.com/Attestar/attestar/issues/6) — `LinearClassifier` → `LogisticRegression`
 
 For end-to-end demos today, use the JSON exchange format via
 `model_io::import_json` (see [model-format.md](model-format.md)).
@@ -72,5 +72,5 @@ offending `op_type` (never silent ignore).
 
 ## Fixtures
 
-See `crates/zkml-prover/tests/fixtures/README.md` for committed test models
+See `crates/attestar-prover/tests/fixtures/README.md` for committed test models
 and regeneration instructions.

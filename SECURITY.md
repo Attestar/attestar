@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in zkml-soroban, please report it
+If you discover a security vulnerability in Attestar, please report it
 responsibly. **Do not open a public GitHub issue.**
 
 ### Contact
@@ -28,9 +28,9 @@ Include the following information:
 
 The following components are in scope for security reports:
 
-- **On-chain verifier contract** (`zkml-verifier`): Proof verification
+- **On-chain verifier contract** (`attestar-verifier`): Proof verification
   logic, storage access control, and contract initialization.
-- **Proof generation pipeline** (`zkml-prover`): Correctness of proof
+- **Proof generation pipeline** (`attestar-prover`): Correctness of proof
   construction, serialization, and public input encoding.
 - **Cryptographic operations**: Fixed-point arithmetic overflow, hash
   commitment integrity, and BN254 curve point handling.

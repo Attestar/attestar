@@ -1,10 +1,10 @@
 # Prover CLI
 
-The `zkml-prover` binary exposes the off-chain pipeline — commitments,
+The `attestar-prover` binary exposes the off-chain pipeline — commitments,
 inference, bundle export, and quantization validation — as subcommands.
 
 > **Breaking change (issue #44).** The old positional form
-> `zkml-prover <model.json> "<inputs>"` is gone; use `infer` (see below). The old
+> `attestar-prover <model.json> "<inputs>"` is gone; use `infer` (see below). The old
 > form silently dropped any input field that failed to parse, so a typo in the
 > feature vector ran inference against the wrong feature count instead of
 > erroring.
@@ -12,13 +12,13 @@ inference, bundle export, and quantization validation — as subcommands.
 ## Build
 
 ```bash
-cargo build -p zkml-prover
+cargo build -p attestar-prover
 ```
 
 ## Commands
 
 ```text
-zkml-prover <COMMAND>
+attestar-prover <COMMAND>
 
 commit   <MODEL>                                Model commitment as 64-char hex
 infer    <MODEL> -i <CSV>                       Commitment + dequantized output + raw Q16.16
@@ -41,7 +41,7 @@ real `.onnx` files would fail confusingly. Import them separately for now.
 Prints the model commitment — the value registered on-chain at `initialize`.
 
 ```bash
-cargo run -p zkml-prover -- commit examples/models/credit_lr.json
+cargo run -p attestar-prover -- commit examples/models/credit_lr.json
 ```
 
 ```text
@@ -51,7 +51,7 @@ cargo run -p zkml-prover -- commit examples/models/credit_lr.json
 ### `infer`
 
 ```bash
-cargo run -p zkml-prover -- infer examples/models/credit_lr.json -i "0.5,0.2,0.9,0.1"
+cargo run -p attestar-prover -- infer examples/models/credit_lr.json -i "0.5,0.2,0.9,0.1"
 ```
 
 ```text
@@ -69,11 +69,11 @@ Writes a `VerificationBundle` as JSON — to stdout by default, so it composes
 with pipes, or to `-o <FILE>`.
 
 ```bash
-cargo run -p zkml-prover -- prove examples/models/credit_lr.json \
+cargo run -p attestar-prover -- prove examples/models/credit_lr.json \
   -i "0.5,0.2,0.9,0.1" -o bundle.json
 ```
 
-The output round-trips through `zkml_prover::prover::bundle_from_json`, and its
+The output round-trips through `attestar_prover::prover::bundle_from_json`, and its
 `model_hash` equals `model_commitment(&model)`.
 
 > **The proof bytes are a placeholder.** `Groth16Proof.data` is empty until
@@ -83,7 +83,7 @@ The output round-trips through `zkml_prover::prover::bundle_from_json`, and its
 
 ### `validate`
 
-Runs the quantization validation passes from `zkml_prover::quantization`:
+Runs the quantization validation passes from `attestar_prover::quantization`:
 
 1. **Range check** — no parameter is `i64::MIN` (which cannot be negated).
 2. **Static overflow bounds** — worst-case intermediates fit in `i64`, assuming
@@ -93,7 +93,7 @@ Runs the quantization validation passes from `zkml_prover::quantization`:
    `--min-agreement`.
 
 ```bash
-cargo run -p zkml-prover -- validate examples/models/credit_lr.json --dataset dataset.json
+cargo run -p attestar-prover -- validate examples/models/credit_lr.json --dataset dataset.json
 ```
 
 ```text
@@ -135,7 +135,7 @@ is the output the **original floating-point model** produced for it.
 ### `inspect`
 
 ```bash
-cargo run -p zkml-prover -- inspect examples/models/kyc_tree.json
+cargo run -p attestar-prover -- inspect examples/models/kyc_tree.json
 ```
 
 ```text
