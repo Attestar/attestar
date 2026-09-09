@@ -43,7 +43,7 @@ pip install numpy pandas scikit-learn skl2onnx
 # See: https://rustup.rs/
 
 # Add wasm32 target
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 ```
 
 ## Quick Start

@@ -21,7 +21,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERIFIER_WASM="$PROJECT_ROOT/target/wasm32-unknown-unknown/release/attestar_verifier.wasm"
+VERIFIER_WASM="$PROJECT_ROOT/target/wasm32v1-none/release/attestar_verifier.wasm"
 
 # Network configuration
 NETWORK="testnet"
@@ -59,7 +59,7 @@ fi
 # Build the verifier WASM
 echo "Building verifier WASM..."
 cd "$PROJECT_ROOT"
-cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
+cargo build --release --target wasm32v1-none -p attestar-verifier
 
 if [ ! -f "$VERIFIER_WASM" ]; then
     echo "Error: WASM build failed: $VERIFIER_WASM not found"

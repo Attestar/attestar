@@ -176,11 +176,11 @@ attestar/
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) (stable, 1.79 or later)
+- [Rust](https://rustup.rs/) (stable, 1.84 or later — required for the wasm32v1-none target)
 - [Stellar CLI](https://developers.stellar.org/docs/build/smart-contracts/getting-started/setup)
-- wasm32-unknown-unknown target:
+- wasm32v1-none target:
   ```bash
-  rustup target add wasm32-unknown-unknown
+  rustup target add wasm32v1-none
   ```
 
 ### Build
@@ -190,7 +190,7 @@ attestar/
 cargo build
 
 # Build the verifier contract for deployment
-cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
+cargo build --release --target wasm32v1-none -p attestar-verifier
 
 # Run all tests
 cargo test --workspace

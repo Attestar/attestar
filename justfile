@@ -15,4 +15,4 @@ check:
 
 # Build the verifier contract for deployment.
 contract:
-    cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
+    cargo build --release --target wasm32v1-none -p attestar-verifier

@@ -21,14 +21,14 @@ code of conduct. By participating, you are expected to uphold this standard.
 
 ### Prerequisites
 
-- **Rust** (stable, 1.79 or later): [Install via rustup](https://rustup.rs/)
+- **Rust** (stable, 1.84 or later — required for the wasm32v1-none target): [Install via rustup](https://rustup.rs/)
 - **Stellar CLI**: Required for contract compilation and deployment.
   ```bash
   cargo install --locked stellar-cli@26.0.0
   ```
-- **wasm32-unknown-unknown target**: Required for compiling Soroban contracts.
+- **wasm32v1-none target**: Required for compiling Soroban contracts.
   ```bash
-  rustup target add wasm32-unknown-unknown
+  rustup target add wasm32v1-none
   ```
 - **RISC Zero toolchain** (Phase 1 prover only):
   See [RISC Zero installation guide](https://dev.risczero.com/api/zkvm/install).
@@ -40,7 +40,7 @@ code of conduct. By participating, you are expected to uphold this standard.
 cargo build
 
 # Build the verifier contract for deployment
-cargo build --release --target wasm32-unknown-unknown -p attestar-verifier
+cargo build --release --target wasm32v1-none -p attestar-verifier
 
 # Run all tests
 cargo test --workspace
